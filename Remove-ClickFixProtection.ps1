@@ -6,9 +6,9 @@
     Discovers and removes all ClickFix protection policies deployed by
     Deploy-ClickFixProtection.ps1. Handles all three policy layers:
 
-      1. Settings Catalog           — Block CMD prompt and Registry Editor
-      2. ASR Rules                   — Defense-in-depth (Settings Catalog-based)
-      3. App Control for Business    — WDAC policy (Endpoint Security > Application Control)
+      1. Settings Catalog           -- Block CMD prompt and Registry Editor
+      2. ASR Rules                   -- Defense-in-depth (Settings Catalog-based)
+      3. App Control for Business    -- WDAC policy (Endpoint Security > Application Control)
 
     All three layers use the configurationPolicies Graph API endpoint.
     Optionally removes the Entra ID security group created for policy assignment.
@@ -30,7 +30,7 @@
 
 .EXAMPLE
     .\Remove-ClickFixProtection.ps1
-    # Interactive — lists discovered policies, asks for confirmation, then removes.
+    # Interactive -- lists discovered policies, asks for confirmation, then removes.
 
 .EXAMPLE
     .\Remove-ClickFixProtection.ps1 -Force
@@ -42,7 +42,7 @@
 
 .EXAMPLE
     .\Remove-ClickFixProtection.ps1 -WhatIf
-    # Dry run — shows what would be removed without deleting anything.
+    # Dry run -- shows what would be removed without deleting anything.
 
 .NOTES
     Prerequisites:
@@ -64,7 +64,7 @@ param(
     [switch]$Force
 )
 
-#region ── Banner ─────────────────────────────────────────────────────────────
+#region -- Banner -------------------------------------------------------------
 
 $banner = @"
 
@@ -75,15 +75,15 @@ $banner = @"
  | |____| | | (__|   < | |    | |>  <  | |_) | (_) | | | |_) | (_| | (__|   <
   \_____|_|_|\___|_|\_\|_|    |_/_/\_\ |____/ \___/|_|_|_.__/ \__,_|\___|_|\_\
 
-  Intune Policy Rollback Tool — Remove ClickFix Protection Policies
-  ──────────────────────────────────────────────────────────────────
+  Intune Policy Rollback Tool -- Remove ClickFix Protection Policies
+  ------------------------------------------------------------------
 
 "@
 Write-Host $banner -ForegroundColor Red
 
 #endregion
 
-#region ── Load Configuration ─────────────────────────────────────────────────
+#region -- Load Configuration -------------------------------------------------
 
 Write-Host "[*] Loading configuration from: $ConfigPath" -ForegroundColor Yellow
 
@@ -106,7 +106,7 @@ Write-Host "[+] Configuration loaded." -ForegroundColor Green
 
 #endregion
 
-#region ── Import Modules & Authenticate ──────────────────────────────────────
+#region -- Import Modules & Authenticate --------------------------------------
 
 $modulesPath = Join-Path $PSScriptRoot "modules"
 
@@ -132,11 +132,11 @@ $tenantId = $graphCtx.TenantId
 
 #endregion
 
-#region ── Discover Existing Policies ─────────────────────────────────────────
+#region -- Discover Existing Policies -----------------------------------------
 
-Write-Host "`n╔══════════════════════════════════════════╗" -ForegroundColor Red
-Write-Host "║      DISCOVERING CLICKFIX POLICIES       ║" -ForegroundColor Red
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Red
+Write-Host "`n+==========================================+" -ForegroundColor Red
+Write-Host "|      DISCOVERING CLICKFIX POLICIES       |" -ForegroundColor Red
+Write-Host "+==========================================+" -ForegroundColor Red
 
 # Collect all the display names from config to build the search list
 $policyNames = @()
@@ -182,7 +182,7 @@ catch {
 }
 
 # Note: WDAC policies now use the native App Control for Business template,
-# which is also under configurationPolicies — already covered by the search above.
+# which is also under configurationPolicies -- already covered by the search above.
 
 # --- Entra ID Group ---
 $discoveredGroup = $null
@@ -200,7 +200,7 @@ if ($IncludeGroup) {
 
 #endregion
 
-#region ── Summary & Confirmation ─────────────────────────────────────────────
+#region -- Summary & Confirmation ---------------------------------------------
 
 $totalItems = $discoveredPolicies.Count + $(if ($discoveredGroup) { 1 } else { 0 })
 
@@ -210,7 +210,7 @@ if ($totalItems -eq 0) {
     exit 0
 }
 
-Write-Host "`n── Items to Remove ─────────────────────────" -ForegroundColor Red
+Write-Host "`n-- Items to Remove -------------------------" -ForegroundColor Red
 $itemIndex = 0
 foreach ($policy in $discoveredPolicies) {
     $itemIndex++
@@ -222,13 +222,13 @@ if ($discoveredGroup) {
     Write-Host "  $itemIndex. [EntraIDGroup] $($config.group.groupName)" -ForegroundColor White
     Write-Host "     ID: $($discoveredGroup.Id)" -ForegroundColor DarkGray
 }
-Write-Host "────────────────────────────────────────────" -ForegroundColor Red
+Write-Host "--------------------------------------------" -ForegroundColor Red
 Write-Host "  Total: $totalItems item(s) will be deleted" -ForegroundColor Yellow
 
 # Confirmation
 if (-not $Force -and -not $WhatIfPreference) {
     Write-Host ""
-    Write-Host "  ⚠  WARNING: This action cannot be undone!" -ForegroundColor Red
+    Write-Host "  [!]  WARNING: This action cannot be undone!" -ForegroundColor Red
     Write-Host "     Devices will no longer be protected once policies are removed." -ForegroundColor Red
     Write-Host ""
     $confirm = Read-Host "  Type 'REMOVE' to confirm deletion (or anything else to cancel)"
@@ -241,11 +241,11 @@ if (-not $Force -and -not $WhatIfPreference) {
 
 #endregion
 
-#region ── Delete Policies ────────────────────────────────────────────────────
+#region -- Delete Policies ----------------------------------------------------
 
-Write-Host "`n╔══════════════════════════════════════════╗" -ForegroundColor Red
-Write-Host "║        REMOVING CLICKFIX POLICIES        ║" -ForegroundColor Red
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Red
+Write-Host "`n+==========================================+" -ForegroundColor Red
+Write-Host "|        REMOVING CLICKFIX POLICIES        |" -ForegroundColor Red
+Write-Host "+==========================================+" -ForegroundColor Red
 
 $removedCount   = 0
 $failedCount    = 0
@@ -308,7 +308,7 @@ $removeDuration = $removeEnd - $removeStart
 
 #endregion
 
-#region ── Write Rollback Log ─────────────────────────────────────────────────
+#region -- Write Rollback Log -------------------------------------------------
 
 $logPath = $config.outputLogPath
 if (-not [System.IO.Path]::IsPathRooted($logPath)) {
@@ -318,9 +318,9 @@ if (-not [System.IO.Path]::IsPathRooted($logPath)) {
 $rollbackLogPath = $logPath -replace '\.txt$', '-rollback.txt'
 
 $logContent = @"
-═══════════════════════════════════════════════════════════════════
-  ClickFix Intune Protection — Rollback Log
-═══════════════════════════════════════════════════════════════════
+===================================================================
+  ClickFix Intune Protection -- Rollback Log
+===================================================================
 
   Timestamp   : $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC" -AsUTC)
   Tenant ID   : $tenantId
@@ -328,7 +328,7 @@ $logContent = @"
   Duration    : $([math]::Round($removeDuration.TotalSeconds, 1)) seconds
   Mode        : $(if ($WhatIfPreference) { "DRY RUN (WhatIf)" } else { "LIVE ROLLBACK" })
 
-── Removed Policies ───────────────────────────────────────────────
+-- Removed Policies -----------------------------------------------
 
 "@
 
@@ -343,7 +343,7 @@ if ($discoveredGroup -and (-not $failedItems -or $failedItems.Id -notcontains $d
 }
 
 if ($failedItems.Count -gt 0) {
-    $logContent += "`n── Failed Deletions ───────────────────────────────────────────────`n`n"
+    $logContent += "`n-- Failed Deletions -----------------------------------------------`n`n"
     foreach ($item in $failedItems) {
         $logContent += "  [$($item.Type)] $($item.DisplayName)`n"
         $logContent += "    ID: $($item.Id)`n`n"
@@ -351,13 +351,13 @@ if ($failedItems.Count -gt 0) {
 }
 
 $logContent += @"
-── Summary ────────────────────────────────────────────────────────
+-- Summary --------------------------------------------------------
 
   Removed   : $removedCount
   Failed    : $failedCount
   Total     : $totalItems
 
-═══════════════════════════════════════════════════════════════════
+===================================================================
 "@
 
 try {
@@ -371,11 +371,11 @@ catch {
 
 #endregion
 
-#region ── Final Summary ──────────────────────────────────────────────────────
+#region -- Final Summary ------------------------------------------------------
 
-Write-Host "`n╔══════════════════════════════════════════╗" -ForegroundColor $(if ($failedCount -eq 0) { 'Green' } else { 'Red' })
-Write-Host "║          ROLLBACK COMPLETE               ║" -ForegroundColor $(if ($failedCount -eq 0) { 'Green' } else { 'Red' })
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor $(if ($failedCount -eq 0) { 'Green' } else { 'Red' })
+Write-Host "`n+==========================================+" -ForegroundColor $(if ($failedCount -eq 0) { 'Green' } else { 'Red' })
+Write-Host "|          ROLLBACK COMPLETE               |" -ForegroundColor $(if ($failedCount -eq 0) { 'Green' } else { 'Red' })
+Write-Host "+==========================================+" -ForegroundColor $(if ($failedCount -eq 0) { 'Green' } else { 'Red' })
 
 Write-Host "`n  Removed  : $removedCount" -ForegroundColor Green
 if ($failedCount -gt 0) {
@@ -393,7 +393,7 @@ Write-Host ""
 
 #endregion
 
-#region ── Cleanup ────────────────────────────────────────────────────────────
+#region -- Cleanup ------------------------------------------------------------
 
 Disconnect-ClickFixGraph
 

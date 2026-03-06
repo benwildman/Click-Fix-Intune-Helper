@@ -9,7 +9,7 @@
       - App Control for Business (WDAC) policy to block PowerShell, wt.exe, cmd.exe etc.
 #>
 
-#region ── Settings Catalog: Block CMD & Regedit ──────────────────────────────
+#region -- Settings Catalog: Block CMD & Regedit ------------------------------
 
 function New-CmdRegeditRestrictionPolicy {
     <#
@@ -42,7 +42,7 @@ function New-CmdRegeditRestrictionPolicy {
 
         Write-Host "`n[*] Creating Settings Catalog policy: $displayName" -ForegroundColor Yellow
 
-        # Settings Catalog payload — ADMX-backed DisableCMD
+        # Settings Catalog payload -- ADMX-backed DisableCMD
         $body = @{
             name         = $displayName
             description  = $description
@@ -161,7 +161,7 @@ function New-CmdRegeditRestrictionPolicy {
 
 #endregion
 
-#region ── Endpoint Security: ASR Rules ───────────────────────────────────────
+#region -- Endpoint Security: ASR Rules ---------------------------------------
 
 function New-AsrRulesPolicy {
     <#
@@ -185,7 +185,7 @@ function New-AsrRulesPolicy {
 
     $asrCfg = $Config.policies.asrRules
     if (-not $asrCfg.enabled) {
-        Write-Host "[*] ASR rules policy is disabled in config — skipping." -ForegroundColor Gray
+        Write-Host "[*] ASR rules policy is disabled in config -- skipping." -ForegroundColor Gray
         return $null
     }
 
@@ -205,7 +205,7 @@ function New-AsrRulesPolicy {
     # Build the ASR rule settings array for Settings Catalog approach
     # Each ASR rule maps to a specific settingDefinitionId
 
-    # ASR rule GUID → settingDefinitionId mapping (discovered from Settings Catalog API)
+    # ASR rule GUID > settingDefinitionId mapping (discovered from Settings Catalog API)
     $guidToSettingId = @{
         "5beb7efe-fd9a-4556-801d-275e5ffc04cc" = "device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockexecutionofpotentiallyobfuscatedscripts"
         "01443614-cd74-433a-b99e-2ecdc07bfc25" = "device_vendor_msft_policy_config_defender_attacksurfacereductionrules_blockexecutablefilesrunningunlesstheymeetprevalenceagetrustedlistcriterion"
@@ -216,10 +216,10 @@ function New-AsrRulesPolicy {
     foreach ($rule in $asrCfg.rules) {
         $mode = $modeMap[$rule.mode]
         if (-not $mode) {
-            Write-Warning "Unknown mode '$($rule.mode)' for ASR rule $($rule.guid) — defaulting to 'audit'."
+            Write-Warning "Unknown mode '$($rule.mode)' for ASR rule $($rule.guid) -- defaulting to 'audit'."
             $mode = "audit"
         }
-        Write-Host "    Rule: $($rule.name) → $mode" -ForegroundColor Gray
+        Write-Host "    Rule: $($rule.name) > $mode" -ForegroundColor Gray
     }
 
     # Build the Settings Catalog payload for ASR rules
@@ -231,7 +231,7 @@ function New-AsrRulesPolicy {
 
         $settingId = $guidToSettingId[$rule.guid]
         if (-not $settingId) {
-            Write-Warning "No known settingDefinitionId for ASR rule GUID $($rule.guid) — skipping."
+            Write-Warning "No known settingDefinitionId for ASR rule GUID $($rule.guid) -- skipping."
             continue
         }
 
@@ -293,7 +293,7 @@ function New-AsrRulesPolicy {
 
 #endregion
 
-#region ── App Control for Business: WDAC Policy ─────────────────────────────
+#region -- App Control for Business: WDAC Policy -----------------------------
 
 function New-WdacPolicy {
     <#
@@ -303,7 +303,7 @@ function New-WdacPolicy {
 
     .DESCRIPTION
         WDAC enforces code integrity at the kernel level and works on Windows
-        Pro, Enterprise, and Education editions — unlike AppLocker which only
+        Pro, Enterprise, and Education editions -- unlike AppLocker which only
         enforces on Enterprise/Education.
 
         This function generates a SiPolicy XML with deny rules for specified
@@ -338,7 +338,7 @@ function New-WdacPolicy {
 
     $wdacCfg = $Config.policies.wdac
     if (-not $wdacCfg.enabled) {
-        Write-Host "[*] WDAC policy is disabled in config — skipping." -ForegroundColor Gray
+        Write-Host "[*] WDAC policy is disabled in config -- skipping." -ForegroundColor Gray
         return $null
     }
 
@@ -439,7 +439,7 @@ $denyRuleRefsXml        </FileRulesRef>
 
     # --- Deploy via native App Control for Business template ---
     # Template: 4321b946-b76b-4450-8afd-769c08b16ffc_1 (endpointSecurityApplicationControl)
-    # Uses XML upload mode — Intune handles compilation server-side
+    # Uses XML upload mode -- Intune handles compilation server-side
     $body = @{
         name         = $displayName
         description  = $description
@@ -513,7 +513,7 @@ $denyRuleRefsXml        </FileRulesRef>
 
 #endregion
 
-#region ── Policy Assignment Helper ───────────────────────────────────────────
+#region -- Policy Assignment Helper -------------------------------------------
 
 function Set-PolicyAssignment {
     <#

@@ -84,7 +84,7 @@
   "group": {
     "createGroup": false,
     "groupName": "ClickFix-Protection-Devices",
-    "groupDescription": "Security group for ClickFix protection policies. Add device objects that should receive CMD, PowerShell, Registry, and Windows Terminal restrictions. WDAC is device-scoped — add devices, not users."
+    "groupDescription": "Security group for ClickFix protection policies. Add device objects that should receive CMD, PowerShell, Registry, and Windows Terminal restrictions. WDAC is device-scoped -- add devices, not users."
   },
   "outputLogPath": "./deployment-log.txt"
 }

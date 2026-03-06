@@ -7,7 +7,7 @@
     with the scopes required for Intune policy and group management.
 #>
 
-# Required Graph scopes — least privilege for policy + group operations
+# Required Graph scopes -- least privilege for policy + group operations
 $script:RequiredScopes = @(
     "DeviceManagementConfiguration.ReadWrite.All"   # Create, assign, list, delete configurationPolicies
     "Group.ReadWrite.All"                            # Create, find, delete Entra ID security groups
@@ -60,7 +60,7 @@ function Connect-ClickFixGraph {
         }
     }
     catch {
-        # No existing session — continue
+        # No existing session -- continue
     }
 
     # --- Connect with required scopes ---

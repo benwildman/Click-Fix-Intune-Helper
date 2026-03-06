@@ -4,23 +4,23 @@
 
 .DESCRIPTION
     Deploys a layered set of Intune policies to mitigate the ClickFix social engineering
-    attack tradecraft (Win+X → I → wt.exe → PowerShell). Creates three policy layers:
+    attack tradecraft (Win+X > I > wt.exe > PowerShell). Creates three policy layers:
 
-      1. Settings Catalog           — Blocks CMD prompt and Registry Editor
-      2. ASR Rules                     — Defense-in-depth against obfuscated scripts and untrusted executables
-      3. App Control for Business      — Kernel-level WDAC block of powershell.exe, pwsh.exe, wt.exe, cmd.exe, etc.
+      1. Settings Catalog           -- Blocks CMD prompt and Registry Editor
+      2. ASR Rules                     -- Defense-in-depth against obfuscated scripts and untrusted executables
+      3. App Control for Business      -- Kernel-level WDAC block of powershell.exe, pwsh.exe, wt.exe, cmd.exe, etc.
 
     WDAC works on Pro, Enterprise, and Education editions (unlike AppLocker which
     requires Enterprise/Education). Deployed as a native App Control for Business
     policy (Endpoint Security > Application Control) with direct XML upload.
-    WDAC is device-scoped — admin exemption is handled via Intune group targeting.
+    WDAC is device-scoped -- admin exemption is handled via Intune group targeting.
 
 .PARAMETER ConfigPath
     Path to the JSON configuration file. Defaults to ./config/policy-config.json.
 
 .PARAMETER CreateGroup
     When specified, creates the Entra ID security group defined in config and assigns
-    all deployed policies to it — even if createGroup is false in policy-config.json.
+    all deployed policies to it -- even if createGroup is false in policy-config.json.
 
 .PARAMETER WhatIf
     Validates configuration and authenticates, but does not create any policies.
@@ -36,7 +36,7 @@
 
 .EXAMPLE
     .\Deploy-ClickFixProtection.ps1 -WhatIf
-    # Dry run — shows what would be created without making changes.
+    # Dry run -- shows what would be created without making changes.
 
 .EXAMPLE
     .\Deploy-ClickFixProtection.ps1 -ConfigPath ".\config\custom-config.json"
@@ -59,7 +59,7 @@ param(
     [switch]$CreateGroup
 )
 
-#region ── Banner ─────────────────────────────────────────────────────────────
+#region -- Banner -------------------------------------------------------------
 
 $banner = @"
 
@@ -70,15 +70,15 @@ $banner = @"
  | |____| | | (__|   < | |    | |>  <  | |   | | | (_) | ||  __/ (__| |_| | (_) | | | |
   \_____|_|_|\___|_|\_\|_|    |_/_/\_\ |_|   |_|  \___/ \__\___|\___|\__|_|\___/|_| |_|
 
-  Intune Policy Deployment Tool — Mitigate ClickFix Social Engineering
-  ─────────────────────────────────────────────────────────────────────
+  Intune Policy Deployment Tool -- Mitigate ClickFix Social Engineering
+  ---------------------------------------------------------------------
 
 "@
 Write-Host $banner -ForegroundColor Cyan
 
 #endregion
 
-#region ── Load Configuration ─────────────────────────────────────────────────
+#region -- Load Configuration -------------------------------------------------
 
 Write-Host "[*] Loading configuration from: $ConfigPath" -ForegroundColor Yellow
 
@@ -136,18 +136,18 @@ if ($CreateGroup.IsPresent) {
 }
 
 # Print summary of enabled policies
-Write-Host "`n── Policy Summary ──────────────────────────" -ForegroundColor White
+Write-Host "`n-- Policy Summary --------------------------" -ForegroundColor White
 Write-Host "  CMD Prompt Block  : $(if ($config.policies.blockCmdPrompt.enabled) { 'ENABLED' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.blockCmdPrompt.enabled) { 'Green' } else { 'Gray' })
 Write-Host "  Registry Editor   : $(if ($config.policies.blockRegistryEditor.enabled) { 'ENABLED' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.blockRegistryEditor.enabled) { 'Green' } else { 'Gray' })
 Write-Host "  ASR Rules         : $(if ($config.policies.asrRules.enabled) { 'ENABLED (' + $config.policies.asrRules.rules.Count + ' rules)' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.asrRules.enabled) { 'Green' } else { 'Gray' })
 Write-Host "  WDAC Block        : $(if ($config.policies.wdac.enabled) { 'ENABLED (' + $config.policies.wdac.blockedApps.Count + ' apps) [' + $config.policies.wdac.mode + ']' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.wdac.enabled) { 'Green' } else { 'Gray' })
 Write-Host "  Group Creation    : $(if ($config.group.createGroup) { 'YES' } else { 'NO (manual)' })" -ForegroundColor $(if ($config.group.createGroup) { 'Green' } else { 'DarkYellow' })
 Write-Host "  Target Group      : $($config.group.groupName)" -ForegroundColor White
-Write-Host "────────────────────────────────────────────" -ForegroundColor White
+Write-Host "--------------------------------------------" -ForegroundColor White
 
 #endregion
 
-#region ── Import Modules ─────────────────────────────────────────────────────
+#region -- Import Modules -----------------------------------------------------
 
 $modulesPath = Join-Path $PSScriptRoot "modules"
 
@@ -164,7 +164,7 @@ catch {
 
 #endregion
 
-#region ── Authenticate ───────────────────────────────────────────────────────
+#region -- Authenticate -------------------------------------------------------
 
 try {
     $graphCtx = Connect-ClickFixGraph
@@ -178,16 +178,16 @@ $tenantId = $graphCtx.TenantId
 
 #endregion
 
-#region ── Deploy Policies ────────────────────────────────────────────────────
+#region -- Deploy Policies ----------------------------------------------------
 
 $deployedPolicies = @()
 $deployStart = Get-Date
 
-Write-Host "`n╔══════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║       DEPLOYING INTUNE POLICIES          ║" -ForegroundColor Cyan
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "`n+==========================================+" -ForegroundColor Cyan
+Write-Host "|       DEPLOYING INTUNE POLICIES          |" -ForegroundColor Cyan
+Write-Host "+==========================================+" -ForegroundColor Cyan
 
-# 1. Settings Catalog — CMD & Regedit restrictions
+# 1. Settings Catalog -- CMD & Regedit restrictions
 $whatIfParams = @{}
 if ($WhatIfPreference) { $whatIfParams['WhatIf'] = $true }
 
@@ -215,7 +215,7 @@ Write-Host "`n[+] Policy deployment complete. $($deployedPolicies.Count) policie
 
 #endregion
 
-#region ── Group Management & Assignment ──────────────────────────────────────
+#region -- Group Management & Assignment --------------------------------------
 
 $groupResult = New-ProtectionGroup -Config $config @whatIfParams
 $groupAssigned = $false
@@ -241,7 +241,7 @@ else {
 
 #endregion
 
-#region ── Write Deployment Log ───────────────────────────────────────────────
+#region -- Write Deployment Log -----------------------------------------------
 
 $logPath = $config.outputLogPath
 if (-not [System.IO.Path]::IsPathRooted($logPath)) {
@@ -249,9 +249,9 @@ if (-not [System.IO.Path]::IsPathRooted($logPath)) {
 }
 
 $logContent = @"
-═══════════════════════════════════════════════════════════════════
-  ClickFix Intune Protection — Deployment Log
-═══════════════════════════════════════════════════════════════════
+===================================================================
+  ClickFix Intune Protection -- Deployment Log
+===================================================================
 
   Timestamp   : $(Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC" -AsUTC)
   Tenant ID   : $tenantId
@@ -259,7 +259,7 @@ $logContent = @"
   Duration    : $([math]::Round($deployDuration.TotalSeconds, 1)) seconds
   Mode        : $(if ($WhatIfPreference) { "DRY RUN (WhatIf)" } else { "LIVE DEPLOYMENT" })
 
-── Created Policies ───────────────────────────────────────────────
+-- Created Policies -----------------------------------------------
 
 "@
 
@@ -269,44 +269,44 @@ foreach ($policy in $deployedPolicies) {
 }
 
 if ($deployedPolicies.Count -eq 0) {
-    $logContent += "  (No policies were created — all disabled in config or errors occurred)`n`n"
+    $logContent += "  (No policies were created -- all disabled in config or errors occurred)`n`n"
 }
 
 $logContent += @"
-── Group Assignment ───────────────────────────────────────────────
+-- Group Assignment -----------------------------------------------
 
   Group Name  : $($config.group.groupName)
   Group ID    : $(if ($groupResult) { $groupResult.Id } else { "NOT CREATED / NOT FOUND" })
   Assigned    : $(if ($groupAssigned) { "YES" } else { "NO" })
 
-  ╔═════════════════════════════════════════════════════════════╗
-  ║  IMPORTANT: Devices must be added to the group             ║
-  ║  '$($config.group.groupName)'          ║
-  ║  for these policies to take effect.                        ║
-  ║                                                            ║
-  ║  Navigate to: Entra ID → Groups → $($config.group.groupName)  ║
-  ║  Add device objects that should receive ClickFix protection║
-  ╚═════════════════════════════════════════════════════════════╝
+  +=============================================================+
+  |  IMPORTANT: Devices must be added to the group             |
+  |  '$($config.group.groupName)'          |
+  |  for these policies to take effect.                        |
+  |                                                            |
+  |  Navigate to: Entra ID > Groups > $($config.group.groupName)  |
+  |  Add device objects that should receive ClickFix protection|
+  +=============================================================+
 
-── Verification Steps ─────────────────────────────────────────────
+-- Verification Steps ---------------------------------------------
 
-  1. Intune Portal → Devices → Configuration profiles
+  1. Intune Portal > Devices > Configuration profiles
      Confirm all created policies appear and show "Assigned"
 
   2. On a test device (added to the group), logged in as a STANDARD user:
-     - Win+R → cmd → Should show "disabled by administrator"
-     - Win+R → regedit → Should be blocked
-     - Win+X → I → wt.exe → Should be blocked by WDAC
-     - PowerShell → Should be blocked by WDAC
+     - Win+R > cmd > Should show "disabled by administrator"
+     - Win+R > regedit > Should be blocked
+     - Win+X > I > wt.exe > Should be blocked by WDAC
+     - PowerShell > Should be blocked by WDAC
      - All above should work on DEVICES NOT IN the target group
 
-  3. Windows Event Log → Microsoft-Windows-Windows Defender/Operational
+  3. Windows Event Log > Microsoft-Windows-Windows Defender/Operational
      Check for ASR event IDs 1121 (block) and 1122 (audit)
 
-  4. Windows Event Log → Microsoft-Windows-CodeIntegrity/Operational
+  4. Windows Event Log > Microsoft-Windows-CodeIntegrity/Operational
      Check for WDAC block events (Event ID 3077 enforce, 3076 audit)
 
-═══════════════════════════════════════════════════════════════════
+===================================================================
 "@
 
 try {
@@ -320,11 +320,11 @@ catch {
 
 #endregion
 
-#region ── Final Summary ──────────────────────────────────────────────────────
+#region -- Final Summary ------------------------------------------------------
 
-Write-Host "`n╔══════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║          DEPLOYMENT COMPLETE             ║" -ForegroundColor Cyan
-Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "`n+==========================================+" -ForegroundColor Cyan
+Write-Host "|          DEPLOYMENT COMPLETE             |" -ForegroundColor Cyan
+Write-Host "+==========================================+" -ForegroundColor Cyan
 
 Write-Host "`n  Policies created : $($deployedPolicies.Count)" -ForegroundColor White
 Write-Host "  Group name       : $($config.group.groupName)" -ForegroundColor White
@@ -332,7 +332,7 @@ Write-Host "  Group assigned   : $(if ($groupAssigned) { 'Yes' } else { 'No' })"
 Write-Host "  Log file         : $logPath" -ForegroundColor White
 
 if (-not $groupAssigned) {
-    Write-Host "`n  ⚠  IMPORTANT: Devices must be added to group '$($config.group.groupName)'" -ForegroundColor Yellow
+    Write-Host "`n  [!]  IMPORTANT: Devices must be added to group '$($config.group.groupName)'" -ForegroundColor Yellow
     Write-Host "     for policies to take effect." -ForegroundColor Yellow
 }
 
@@ -340,7 +340,7 @@ Write-Host ""
 
 #endregion
 
-#region ── Cleanup ────────────────────────────────────────────────────────────
+#region -- Cleanup ------------------------------------------------------------
 
 Disconnect-ClickFixGraph
 
