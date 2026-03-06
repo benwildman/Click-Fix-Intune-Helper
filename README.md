@@ -164,6 +164,25 @@ Valid modes: `Block`, `Audit`, `Warn`, `Off`
 
 > **Native policy type:** Deployed as an "App Control for Business" policy via the Endpoint Security > Application Control blade. SiPolicy XML is uploaded directly -- no local binary compilation required.
 
+### Why OriginalFileName and not file hashes?
+
+This tool uses `OriginalFileName` (PE header) deny rules rather than file-hash deny rules. This is a deliberate design choice:
+
+| Approach | Pros | Cons |
+|---|---|---|
+| **OriginalFileName** (this tool) | Survives Windows updates; no maintenance needed; Microsoft-recommended for deny lists; blocks all versions of the target executable | Does not block custom-compiled binaries with a different PE header |
+| **File hash** | Cryptographically exact; blocks a specific binary | Breaks after every Windows update (new hash per build); requires maintaining hundreds of hashes across OS versions; operationally unsustainable for deny lists |
+| **Publisher/signer** | Blocks all binaries from a specific signer | Too broad for Microsoft-signed system binaries; would block legitimate tools |
+
+**Key points:**
+
+- `OriginalFileName` is embedded in the PE header at compile time by Microsoft. It **cannot** be changed without re-compiling and re-signing the binary, which would invalidate the Microsoft signature.
+- Simply **renaming** `powershell.exe` to `notepad.exe` does **not** bypass the rule -- WDAC reads the PE header, not the file name on disk.
+- Simply **copying** the executable to another path does **not** bypass the rule -- WDAC enforces at the kernel level regardless of file location.
+- The realistic bypass for a deny-list is bringing a **different binary** (e.g. a custom .NET host, a third-party scripting engine, or a LOLBin not in the deny list). Only a full **allow-list** (application whitelisting) policy closes that gap entirely.
+
+> **Bottom line:** A deny-list WDAC policy is a strong **mitigation** that raises the bar significantly for ClickFix attacks, but it is not a silver bullet. For maximum protection, combine it with the ASR and Settings Catalog layers in this tool, and consider moving to a full WDAC allow-list policy for high-security environments.
+
 ### `group`
 
 | Key | Type | Default | Description |
