@@ -1,6 +1,6 @@
 # ClickFix Intune Protection Helper
 
-Deploys a layered set of Microsoft Intune policies to mitigate the **ClickFix social engineering attack** — specifically the newer tradecraft where users are instructed to press **Win+X → I** to launch Windows Terminal (`wt.exe`) directly, bypassing traditional Run dialog detections.
+Deploys a layered set of Microsoft Intune policies to mitigate the **ClickFix social engineering attack** -- specifically the newer tradecraft where users are instructed to press **Win+X → I** to launch Windows Terminal (`wt.exe`) directly, bypassing traditional Run dialog detections.
 
 ## The Threat
 
@@ -14,7 +14,7 @@ This bypasses the older **Win+R → paste → execute** detection because `wt.ex
 
 ## Defense Architecture
 
-This tool deploys **three policy layers** — each addresses a different part of the attack surface:
+This tool deploys **three policy layers** -- each addresses a different part of the attack surface:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -44,7 +44,7 @@ This tool deploys **three policy layers** — each addresses a different part of
 
 ### Why WDAC over AppLocker?
 
-**AppLocker only enforces on Windows Enterprise and Education.** On Windows Pro, AppLocker policies are accepted silently but **never enforced** — Intune will show the profile as "Applied" while providing zero protection.
+**AppLocker only enforces on Windows Enterprise and Education.** On Windows Pro, AppLocker policies are accepted silently but **never enforced** -- Intune will show the profile as "Applied" while providing zero protection.
 
 **WDAC (Windows Defender Application Control)** enforces on **Pro, Enterprise, and Education** editions (since Windows 10 1903). It operates at the kernel level as a code integrity policy, meaning:
 
@@ -64,12 +64,12 @@ ShellExperienceHost → wt.exe → powershell.exe
 
 ### WDAC: Device-Scoped Policy
 
-Unlike AppLocker, WDAC does not have per-user rules — it applies to **all users on a device**. Admin exemption is handled by:
+Unlike AppLocker, WDAC does not have per-user rules -- it applies to **all users on a device**. Admin exemption is handled by:
 
-1. **Intune group targeting** — Only assign the policy to standard user workstations
-2. **Separate admin workstations** — Use dedicated PAW (Privileged Access Workstations) for admin tasks
-3. **Remote management** — Admins use Azure Cloud Shell, remote PS sessions, or Intune for management
-4. **Audit mode first** — Deploy in audit mode (`"mode": "Audit"`) to validate impact before enforcing
+1. **Intune group targeting** -- Only assign the policy to standard user workstations
+2. **Separate admin workstations** -- Use dedicated PAW (Privileged Access Workstations) for admin tasks
+3. **Remote management** -- Admins use Azure Cloud Shell, remote PS sessions, or Intune for management
+4. **Audit mode first** -- Deploy in audit mode (`"mode": "Audit"`) to validate impact before enforcing
 
 ## Prerequisites
 
@@ -82,20 +82,20 @@ Unlike AppLocker, WDAC does not have per-user rules — it applies to **all user
 | **Defender** | Microsoft Defender for Endpoint (for ASR rules) |
 | **Windows** | Windows 10 1903+ or Windows 11 |
 
-> **Important — Device Enrollment:** Target devices **must be enrolled in Microsoft Intune** (MDM) for any of these policies to take effect. Intune enrolment is typically configured via Entra ID Join or Hybrid Join with auto-enrolment, or manually through **Settings → Accounts → Access work or school → Enroll only in device management**. Devices that are only Entra ID registered (BYOD / workplace join) without MDM enrolment will **not** receive Intune configuration policies.
+> **Important -- Device Enrollment:** Target devices **must be enrolled in Microsoft Intune** (MDM) for any of these policies to take effect. Intune enrolment is typically configured via Entra ID Join or Hybrid Join with auto-enrolment, or manually through **Settings → Accounts → Access work or school → Enroll only in device management**. Devices that are only Entra ID registered (BYOD / workplace join) without MDM enrolment will **not** receive Intune configuration policies.
 
 ## Graph API Permissions
 
-When you run the deploy or rollback scripts, an interactive browser login prompt will appear asking you to consent to permissions for **Microsoft Graph PowerShell**. This is a **Microsoft-published, first-party enterprise application** (App ID `14d82eec-204b-4c2f-b7e8-296a70dab67e`) — it is not a third-party or custom app registration. It is safe to consent.
+When you run the deploy or rollback scripts, an interactive browser login prompt will appear asking you to consent to permissions for **Microsoft Graph PowerShell**. This is a **Microsoft-published, first-party enterprise application** (App ID `14d82eec-204b-4c2f-b7e8-296a70dab67e`) -- it is not a third-party or custom app registration. It is safe to consent.
 
-The tool requests **least-privilege delegated scopes** — only what is needed:
+The tool requests **least-privilege delegated scopes** -- only what is needed:
 
 | Scope | Purpose |
 |---|---|
 | `DeviceManagementConfiguration.ReadWrite.All` | Create, assign, list, and delete Intune configuration policies (Settings Catalog, ASR, App Control for Business) |
 | `Group.ReadWrite.All` | Create, find, and delete the Entra ID security group used for policy assignment (only exercised when `-CreateGroup` is used or `createGroup` is `true` in config) |
 
-These are **delegated** permissions — they run in the context of the signed-in user and are limited by that user's own Entra ID role (Global Admin or Intune Administrator). No application-level (daemon) permissions are used. If your organisation restricts user consent, a Global Admin can pre-consent for the tenant in **Entra ID → Enterprise applications → Microsoft Graph PowerShell → Permissions**.
+These are **delegated** permissions -- they run in the context of the signed-in user and are limited by that user's own Entra ID role (Global Admin or Intune Administrator). No application-level (daemon) permissions are used. If your organisation restricts user consent, a Global Admin can pre-consent for the tenant in **Entra ID → Enterprise applications → Microsoft Graph PowerShell → Permissions**.
 
 ## Quick Start
 
@@ -129,7 +129,7 @@ All policy settings are externalised in [`config/policy-config.json`](config/pol
 |---|---|---|---|
 | `enabled` | bool | `true` | Deploy CMD prompt restriction policy |
 | `displayName` | string | `"ClickFix Protection - Block CMD Prompt"` | Intune policy display name |
-| `description` | string | — | Policy description |
+| `description` | string | -- | Policy description |
 
 ### `policies.blockRegistryEditor`
 
@@ -137,7 +137,7 @@ All policy settings are externalised in [`config/policy-config.json`](config/pol
 |---|---|---|---|
 | `enabled` | bool | `true` | Deploy Registry Editor restriction policy |
 | `displayName` | string | `"ClickFix Protection - Block Registry Editor"` | Intune policy display name |
-| `description` | string | — | Policy description |
+| `description` | string | -- | Policy description |
 
 ### `policies.asrRules`
 
@@ -162,7 +162,7 @@ Valid modes: `Block`, `Audit`, `Warn`, `Off`
 
 > **Edition support:** WDAC works on Windows **Pro**, Enterprise, and Education (unlike AppLocker which requires Enterprise/Education).
 
-> **Native policy type:** Deployed as an "App Control for Business" policy via the Endpoint Security > Application Control blade. SiPolicy XML is uploaded directly — no local binary compilation required.
+> **Native policy type:** Deployed as an "App Control for Business" policy via the Endpoint Security > Application Control blade. SiPolicy XML is uploaded directly -- no local binary compilation required.
 
 ### `group`
 
@@ -170,7 +170,7 @@ Valid modes: `Block`, `Audit`, `Warn`, `Off`
 |---|---|---|---|
 | `createGroup` | bool | `false` | Create the Entra ID security group automatically |
 | `groupName` | string | `"ClickFix-Protection-Devices"` | Target group display name |
-| `groupDescription` | string | — | Group description |
+| `groupDescription` | string | -- | Group description |
 
 ### `outputLogPath`
 
@@ -183,7 +183,7 @@ Valid modes: `Block`, `Audit`, `Warn`, `Off`
 ```
 Click-Fix-Intune-Helper/
 ├── Deploy-ClickFixProtection.ps1   # Deploy all protection policies
-├── Remove-ClickFixProtection.ps1   # Rollback — remove all policies
+├── Remove-ClickFixProtection.ps1   # Rollback -- remove all policies
 ├── config/
 │   └── policy-config.json          # All policy settings (edit this)
 ├── modules/
@@ -198,9 +198,9 @@ Click-Fix-Intune-Helper/
 
 After running the script:
 
-1. **Add devices to the target group** — Navigate to Entra ID → Groups → `ClickFix-Protection-Devices` and add **device objects** (not users). WDAC is device-scoped, so the group must contain device memberships. Policies will not take effect until devices are members.
+1. **Add devices to the target group** -- Navigate to Entra ID → Groups → `ClickFix-Protection-Devices` and add **device objects** (not users). WDAC is device-scoped, so the group must contain device memberships. Policies will not take effect until devices are members.
 
-2. **Verify in Intune** — Check two locations:
+2. **Verify in Intune** -- Check two locations:
    - **Settings Catalog & ASR**: Intune → Devices → Configuration profiles
    - **WDAC**: Intune → Endpoint Security → Application Control
    
@@ -224,10 +224,10 @@ After running the script:
 A dedicated rollback script is included to cleanly remove all ClickFix policies from your tenant:
 
 ```powershell
-# Interactive — lists discovered policies, asks for confirmation, then removes
+# Interactive -- lists discovered policies, asks for confirmation, then removes
 .\Remove-ClickFixProtection.ps1
 
-# Dry run — show what would be removed without deleting anything
+# Dry run -- show what would be removed without deleting anything
 .\Remove-ClickFixProtection.ps1 -WhatIf
 
 # Skip confirmation prompts
@@ -236,7 +236,7 @@ A dedicated rollback script is included to cleanly remove all ClickFix policies 
 # Also remove the Entra ID security group
 .\Remove-ClickFixProtection.ps1 -IncludeGroup
 
-# Nuclear option — remove everything without prompts
+# Nuclear option -- remove everything without prompts
 .\Remove-ClickFixProtection.ps1 -IncludeGroup -Force
 ```
 
@@ -253,7 +253,7 @@ Policies are removed from devices on the next Intune sync cycle. Force a sync fr
 
 > **This project is a proof of concept (POC) and is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement.**
 >
-> The authors accept no liability for any damage, data loss, service disruption, or unintended policy enforcement caused by the use of this tool. **WDAC and ASR policies can block legitimate applications and administrative tools** — misconfiguration may lock users (including administrators) out of critical functionality.
+> The authors accept no liability for any damage, data loss, service disruption, or unintended policy enforcement caused by the use of this tool. **WDAC and ASR policies can block legitimate applications and administrative tools** -- misconfiguration may lock users (including administrators) out of critical functionality.
 >
 > **Before deploying to production:**
 > - Test in an isolated lab or on a single device
