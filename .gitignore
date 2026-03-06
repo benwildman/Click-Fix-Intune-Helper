@@ -1,0 +1,21 @@
+# Deployment logs
+deployment-log.txt
+deployment-log-rollback.txt
+*.log
+
+# PowerShell artifacts
+*.ps1xml
+*.pssc
+*.cdxml
+
+# Module output
+output/
+
+# OS files
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# IDE
+.vscode/
+*.code-workspace
