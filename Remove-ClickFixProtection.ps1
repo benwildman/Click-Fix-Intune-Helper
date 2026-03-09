@@ -55,7 +55,7 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter()]
-    [string]$ConfigPath = (Join-Path $PSScriptRoot "config" "policy-config.json"),
+    [string]$ConfigPath = (Join-Path (Join-Path $PSScriptRoot "config") "policy-config.json"),
 
     [Parameter()]
     [switch]$IncludeGroup,
