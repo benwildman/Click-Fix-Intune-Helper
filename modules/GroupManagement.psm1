@@ -108,7 +108,8 @@ function Find-ExistingGroup {
     )
 
     try {
-        $filter = "displayName eq '$GroupName'"
+        $escapedName = $GroupName -replace "'", "''"
+        $filter = "displayName eq '$escapedName'"
         $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=$filter&`$select=id,displayName"
         $result = Invoke-MgGraphRequest -Method GET -Uri $uri
 

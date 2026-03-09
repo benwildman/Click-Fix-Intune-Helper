@@ -101,6 +101,9 @@ These are **delegated** permissions -- they run in the context of the signed-in 
 
 > **Requires PowerShell 7+.** These scripts do not support Windows PowerShell 5.1. Install PowerShell 7 from the [official docs](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) or run `winget install Microsoft.PowerShell`. Launch with `pwsh`.
 
+> [!CAUTION]
+> **The script deploys in audit mode by default.** This is intentional — WDAC and ASR policies can block legitimate applications and system tools. Validate the audit event logs on test devices before using `-Enforce` to switch to blocking mode.
+
 ```powershell
 # 1. Clone the repo
 git clone https://github.com/benwildman/Click-Fix-Intune-Helper.git
@@ -109,17 +112,91 @@ cd Click-Fix-Intune-Helper
 # 2. Review and customise the config
 notepad .\config\policy-config.json
 
-# 3. Deploy policies only (interactive Global Admin login)
-.\Deploy-ClickFixProtection.ps1
-
-# 4. Deploy policies AND create the Entra ID security group + assign
+# 3. Deploy in AUDIT mode (default -- logs only, no blocking)
 .\Deploy-ClickFixProtection.ps1 -CreateGroup
+
+# 4. After validation, redeploy in ENFORCE mode (see "Audit Mode" section below)
+.\Deploy-ClickFixProtection.ps1 -Enforce -CreateGroup
 
 # 5. Dry run (validate without creating anything)
 .\Deploy-ClickFixProtection.ps1 -WhatIf
 ```
 
 > **Tip:** By default, policies are created **without** a group assignment. Use `-CreateGroup` to have the script create the Entra ID security group from your config and assign all policies to it in one step. You can also set `createGroup: true` in `policy-config.json` for the same effect.
+
+## Audit Mode -- Deploy Safely, Validate, Then Enforce
+
+> [!IMPORTANT]
+> **This is the recommended deployment workflow.** Skipping audit mode and deploying directly in enforce mode can block legitimate tools and workflows across your organisation.
+
+### Step 1: Deploy in Audit Mode
+
+Just run the script — **audit mode is the default**. All policy layers deploy in logging-only mode:
+
+- **WDAC** deploys with `Enabled:Audit Mode` in the SiPolicy XML -- blocked executables are logged but still allowed to run
+- **ASR rules** deploy in `Audit` mode -- rule triggers are logged but not enforced
+- **Settings Catalog** policies (CMD/Regedit block) do not have an audit equivalent -- set `enabled: false` in config if you want to defer those too
+
+```powershell
+.\Deploy-ClickFixProtection.ps1 -CreateGroup
+```
+
+### Step 2: Add Test Devices to the Group
+
+Add one or two test devices to the `ClickFix-Protection-Devices` group in Entra ID. Wait for the next Intune sync cycle (or force a sync on-device).
+
+### Step 3: Validate via Event Logs
+
+On the test device, attempt the actions you want to block (open cmd, PowerShell, Windows Terminal, etc.) and check the event logs:
+
+| Policy Layer | Event Log | Audit Event ID | What to Look For |
+|---|---|---|---|
+| **WDAC** | `Microsoft-Windows-CodeIntegrity/Operational` | **3076** | Should list each blocked executable (cmd.exe, powershell.exe, etc.) |
+| **ASR** | `Microsoft-Windows-Windows Defender/Operational` | **1122** | Should list triggered ASR rule GUIDs |
+
+**What you're checking:**
+- Event ID **3076** entries appear for exactly the executables in your deny list (cmd.exe, powershell.exe, pwsh.exe, wt.exe, mshta.exe, cscript.exe, wscript.exe)
+- No unexpected **3076** entries for system-critical binaries or legitimate applications your users need
+- ASR rule **1122** events fire for the expected scenarios without impacting normal workflows
+
+### Step 4: Switch to Enforce Mode
+
+Once you're confident the audit logs look correct, you have two options:
+
+#### Option A: Redeploy with the Script
+
+Remove the existing audit policies and redeploy with the `-Enforce` switch:
+
+```powershell
+# Remove audit-mode policies
+.\Remove-ClickFixProtection.ps1 -Force
+
+# Redeploy in enforce mode
+.\Deploy-ClickFixProtection.ps1 -Enforce -CreateGroup
+```
+
+#### Option B: Edit the WDAC Policy XML Directly in Intune
+
+If you prefer not to redeploy, you can switch the existing WDAC policy from audit to enforce by editing the XML in the Intune portal:
+
+1. Navigate to **Intune → Endpoint Security → Application Control**
+2. Open the **ClickFix Protection - WDAC Executable Block** policy
+3. Edit the policy settings and locate the SiPolicy XML content
+4. Find and **remove** this entire `<Rule>` block from the `<Rules>` section:
+   ```xml
+   <Rule>
+     <Option>Enabled:Audit Mode</Option>
+   </Rule>
+   ```
+5. Save the policy
+
+The updated policy will push to devices on the next sync cycle. After this change:
+- Event ID **3077** (enforce block) will replace Event ID **3076** (audit) in the CodeIntegrity log
+- The denied executables will actually be blocked from running
+
+For ASR rules, navigate to the ASR policy in **Intune → Devices → Configuration profiles**, edit each rule, and change the mode from **Audit** to **Block**.
+
+> **Tip:** Keep audit mode running for at least a few days across representative devices before switching to enforce. Check for edge cases like scheduled tasks, login scripts, or third-party tools that may invoke the blocked executables.
 
 ## Configuration Reference
 
@@ -157,7 +234,7 @@ Valid modes: `Block`, `Audit`, `Warn`, `Off`
 |---|---|---|---|
 | `enabled` | bool | `true` | Deploy WDAC code integrity policy |
 | `displayName` | string | `"ClickFix Protection - WDAC Executable Block"` | Policy display name |
-| `mode` | string | `"Enforce"` | `"Enforce"` to block, `"Audit"` to log only |
+| `mode` | string | `"Audit"` | `"Audit"` to log only (default), `"Enforce"` to block. Overridden by `-Enforce` switch. |
 | `blockedApps` | array | 7 apps | Objects with `name`, `originalFileName`, and `description` |
 
 > **Note:** WDAC deny rules use `OriginalFileName` from the PE header, which cannot be changed by renaming the executable. This is more tamper-resistant than path-based rules.
@@ -230,14 +307,16 @@ After running the script:
    ![ClickFix policies deployed in Intune](policy.png)
 
 3. **Test on a device** (in the target group):
-   - `Win+R → cmd` → Should show "disabled by administrator"
-   - `Win+R → regedit` → Should be blocked
-   - `Win+X → I` → Windows Terminal should be blocked by WDAC
-   - Direct `powershell.exe` launch → Should be blocked
-   - **Devices NOT in the target group should be unaffected**
+   - If in **audit mode**: perform the actions below and verify matching Event IDs in the logs (see [Audit Mode](#audit-mode----deploy-safely-validate-then-enforce) section)
+   - If in **enforce mode**:
+     - `Win+R → cmd` → Should show "disabled by administrator"
+     - `Win+R → regedit` → Should be blocked
+     - `Win+X → I` → Windows Terminal should be blocked by WDAC
+     - Direct `powershell.exe` launch → Should be blocked
+     - **Devices NOT in the target group should be unaffected**
 
 4. **Monitor event logs**:
-   - ASR events: `Microsoft-Windows-Windows Defender/Operational` (Event IDs 1121, 1122)
+   - ASR events: `Microsoft-Windows-Windows Defender/Operational` (Event IDs 1121 block, 1122 audit)
    - WDAC events: `Microsoft-Windows-CodeIntegrity/Operational` (Event ID 3077 enforce, 3076 audit)
 
 ## Rollback

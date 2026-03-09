@@ -22,17 +22,31 @@
     When specified, creates the Entra ID security group defined in config and assigns
     all deployed policies to it -- even if createGroup is false in policy-config.json.
 
+.PARAMETER Enforce
+    When specified, overrides all policies to deploy in enforce/block mode instead
+    of the default audit mode. WDAC deploys without Enabled:Audit Mode (actively
+    blocking), and ASR rules deploy in Block mode. Only use this after validating
+    audit logs on test devices.
+
 .PARAMETER WhatIf
     Validates configuration and authenticates, but does not create any policies.
     Logs what would be created.
 
 .EXAMPLE
     .\Deploy-ClickFixProtection.ps1
-    # Runs with default config, creates all enabled policies.
+    # Deploys all policies in AUDIT mode (safe default -- logs only, no blocking).
 
 .EXAMPLE
     .\Deploy-ClickFixProtection.ps1 -CreateGroup
-    # Creates policies AND the Entra ID security group, then assigns policies to it.
+    # Deploys in audit mode AND creates the Entra ID security group + assigns policies.
+
+.EXAMPLE
+    .\Deploy-ClickFixProtection.ps1 -Enforce
+    # Deploys all policies in ENFORCE mode (actively blocks). Use after audit validation.
+
+.EXAMPLE
+    .\Deploy-ClickFixProtection.ps1 -Enforce -CreateGroup
+    # Full enforce deployment with group creation and assignment.
 
 .EXAMPLE
     .\Deploy-ClickFixProtection.ps1 -WhatIf
@@ -56,7 +70,10 @@ param(
     [string]$ConfigPath = (Join-Path (Join-Path $PSScriptRoot "config") "policy-config.json"),
 
     [Parameter()]
-    [switch]$CreateGroup
+    [switch]$CreateGroup,
+
+    [Parameter()]
+    [switch]$Enforce
 )
 
 #region -- Banner -------------------------------------------------------------
@@ -145,12 +162,30 @@ if ($CreateGroup.IsPresent) {
     Write-Host "`n[*] -CreateGroup switch: group creation enabled (overrides config)." -ForegroundColor Yellow
 }
 
+# Default is audit mode. Override to enforce only if -Enforce switch is used.
+if ($Enforce.IsPresent) {
+    $config.policies.wdac.mode = "Enforce"
+    foreach ($rule in $config.policies.asrRules.rules) {
+        $rule.mode = "Block"
+    }
+    Write-Host "`n[!] -Enforce switch: ALL policies will deploy in ENFORCE mode (actively blocking)." -ForegroundColor Red
+}
+else {
+    $config.policies.wdac.mode = "Audit"
+    foreach ($rule in $config.policies.asrRules.rules) {
+        $rule.mode = "Audit"
+    }
+    Write-Host "`n[*] Deploying in AUDIT mode (default). Policies will log but not block." -ForegroundColor DarkYellow
+    Write-Host "    Use -Enforce to deploy in blocking mode after validating audit logs." -ForegroundColor DarkYellow
+}
+
 # Print summary of enabled policies
 Write-Host "`n-- Policy Summary --------------------------" -ForegroundColor White
 Write-Host "  CMD Prompt Block  : $(if ($config.policies.blockCmdPrompt.enabled) { 'ENABLED' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.blockCmdPrompt.enabled) { 'Green' } else { 'Gray' })
 Write-Host "  Registry Editor   : $(if ($config.policies.blockRegistryEditor.enabled) { 'ENABLED' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.blockRegistryEditor.enabled) { 'Green' } else { 'Gray' })
 Write-Host "  ASR Rules         : $(if ($config.policies.asrRules.enabled) { 'ENABLED (' + $config.policies.asrRules.rules.Count + ' rules)' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.asrRules.enabled) { 'Green' } else { 'Gray' })
 Write-Host "  WDAC Block        : $(if ($config.policies.wdac.enabled) { 'ENABLED (' + $config.policies.wdac.blockedApps.Count + ' apps) [' + $config.policies.wdac.mode + ']' } else { 'disabled' })" -ForegroundColor $(if ($config.policies.wdac.enabled) { 'Green' } else { 'Gray' })
+Write-Host "  Deploy Mode       : $(if ($Enforce.IsPresent) { 'ENFORCE (blocking)' } else { 'AUDIT (logging only)' })" -ForegroundColor $(if ($Enforce.IsPresent) { 'Red' } else { 'DarkYellow' })
 Write-Host "  Group Creation    : $(if ($config.group.createGroup) { 'YES' } else { 'NO (manual)' })" -ForegroundColor $(if ($config.group.createGroup) { 'Green' } else { 'DarkYellow' })
 Write-Host "  Target Group      : $($config.group.groupName)" -ForegroundColor White
 Write-Host "--------------------------------------------" -ForegroundColor White
@@ -267,7 +302,7 @@ $logContent = @"
   Tenant ID   : $tenantId
   Account     : $($graphCtx.Account)
   Duration    : $([math]::Round($deployDuration.TotalSeconds, 1)) seconds
-  Mode        : $(if ($WhatIfPreference) { "DRY RUN (WhatIf)" } else { "LIVE DEPLOYMENT" })
+  Mode        : $(if ($WhatIfPreference) { "DRY RUN (WhatIf)" } elseif ($Enforce.IsPresent) { "ENFORCE (blocking)" } else { "AUDIT (logging only)" })
 
 -- Created Policies -----------------------------------------------
 

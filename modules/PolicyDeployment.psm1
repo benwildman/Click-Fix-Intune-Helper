@@ -78,7 +78,7 @@ function New-CmdRegeditRestrictionPolicy {
         if ($PSCmdlet.ShouldProcess($displayName, "Create Settings Catalog policy")) {
             try {
                 $uri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies"
-                $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json"
+                $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json" -ErrorAction Stop
                 Write-Host "[+] Created: $displayName (ID: $($result.id))" -ForegroundColor Green
                 $policies += [PSCustomObject]@{
                     Id          = $result.id
@@ -138,7 +138,7 @@ function New-CmdRegeditRestrictionPolicy {
         if ($PSCmdlet.ShouldProcess($displayName, "Create Settings Catalog policy")) {
             try {
                 $uri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies"
-                $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json"
+                $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json" -ErrorAction Stop
                 Write-Host "[+] Created: $displayName (ID: $($result.id))" -ForegroundColor Green
                 $policies += [PSCustomObject]@{
                     Id          = $result.id
@@ -272,7 +272,7 @@ function New-AsrRulesPolicy {
     if ($PSCmdlet.ShouldProcess($displayName, "Create ASR rules policy")) {
         try {
             $uri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies"
-            $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json"
+            $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json" -ErrorAction Stop
             Write-Host "[+] Created: $displayName (ID: $($result.id))" -ForegroundColor Green
             return [PSCustomObject]@{
                 Id          = $result.id
@@ -354,6 +354,15 @@ function New-WdacPolicy {
     $policyId = [guid]::NewGuid().ToString()
     $policyIdBraces = "{$policyId}"
 
+    # --- Helper: XML-escape a string to prevent malformed XML from config values ---
+    function ConvertTo-XmlSafe([string]$Text) {
+        return $Text -replace '&','&amp;' -replace '<','&lt;' -replace '>','&gt;' -replace '"','&quot;' -replace "'",'&apos;'
+    }
+
+    # --- Auto-increment VersionEx using date-based scheme (10.0.YYMM.DDnn) ---
+    $now = Get-Date
+    $versionEx = "10.0.$($now.ToString('yyMM')).$($now.ToString('dd'))01"
+
     # --- Build deny FileRule entries ---
     $fileRulesXml = ""
     $denyRuleRefsXml = ""
@@ -361,11 +370,11 @@ function New-WdacPolicy {
 
     foreach ($app in $wdacCfg.blockedApps) {
         $ruleIndex++
-        $denyId    = "ID_DENY_D_$($ruleIndex)"
-        $fileName  = $app.originalFileName
-        $friendlyName = "$($app.name) - $($app.description)"
+        $denyId       = "ID_DENY_D_$($ruleIndex)"
+        $fileName     = ConvertTo-XmlSafe $app.originalFileName
+        $friendlyName = ConvertTo-XmlSafe "$($app.name) - $($app.description)"
 
-        $fileRulesXml += "      <Deny ID=`"$denyId`" FriendlyName=`"$friendlyName`" FileName=`"$fileName`" MinimumFileVersion=`"0.0.0.0`" />`n"
+        $fileRulesXml += "      <Deny ID=`"$denyId`" FriendlyName=`"$friendlyName`" FileName=`"$fileName`" MinimumFileVersion=`"0.0.0.0`" MaximumFileVersion=`"65535.65535.65535.65535`" />`n"
 
         $denyRuleRefsXml += "          <FileRuleRef RuleID=`"$denyId`" />`n"
 
@@ -383,11 +392,10 @@ function New-WdacPolicy {
         Write-Host "    [!] Policy will be deployed in AUDIT mode (logging only, not blocking)" -ForegroundColor DarkYellow
     }
 
-    # --- Build full WDAC CI Policy XML ---
     $wdacXml = @"
 <?xml version="1.0" encoding="utf-8"?>
 <SiPolicy xmlns="urn:schemas-microsoft-com:sipolicy" PolicyType="Base Policy">
-  <VersionEx>10.0.1.0</VersionEx>
+  <VersionEx>$versionEx</VersionEx>
   <PlatformID>{2E07F7E4-194C-4D20-B7C9-6F44A6C5A234}</PlatformID>
   <PolicyID>$policyIdBraces</PolicyID>
   <BasePolicyID>$policyIdBraces</BasePolicyID>
@@ -396,23 +404,40 @@ function New-WdacPolicy {
       <Option>Enabled:Unsigned System Integrity Policy</Option>
     </Rule>
     <Rule>
+      <Option>Enabled:UMCI</Option>
+    </Rule>
+    <Rule>
       <Option>Enabled:Advanced Boot Options Menu</Option>
     </Rule>
     <Rule>
       <Option>Required:Enforce Store Applications</Option>
     </Rule>
-$auditModeOption  </Rules>
+    <Rule>
+      <Option>Enabled:Allow Supplemental Policies</Option>
+    </Rule>
+    <Rule>
+      <Option>Enabled:Update Policy No Reboot</Option>
+    </Rule>
+$auditModeOption
+  </Rules>
   <EKUs />
   <FileRules>
+      <Allow ID="ID_ALLOW_A_1" FriendlyName="Allow all user-mode files" FileName="*" MinimumFileVersion="0.0.0.0" />
+      <Allow ID="ID_ALLOW_A_2" FriendlyName="Allow all drivers" FileName="*" MinimumFileVersion="0.0.0.0" />
 $fileRulesXml  </FileRules>
   <Signers />
   <SigningScenarios>
     <SigningScenario Value="131" ID="ID_SIGNINGSCENARIO_DRIVERS" FriendlyName="Driver Signing">
-      <ProductSigners />
+      <ProductSigners>
+        <FileRulesRef>
+          <FileRuleRef RuleID="ID_ALLOW_A_2" />
+        </FileRulesRef>
+      </ProductSigners>
     </SigningScenario>
     <SigningScenario Value="12" ID="ID_SIGNINGSCENARIO_USERMODE" FriendlyName="User Mode Signing">
       <ProductSigners>
         <FileRulesRef>
+          <FileRuleRef RuleID="ID_ALLOW_A_1" />
 $denyRuleRefsXml        </FileRulesRef>
       </ProductSigners>
     </SigningScenario>
@@ -423,7 +448,7 @@ $denyRuleRefsXml        </FileRulesRef>
   <Settings>
     <Setting Provider="PolicyInfo" Key="Information" ValueName="Name">
       <Value>
-        <String>$displayName</String>
+        <String>$(ConvertTo-XmlSafe $displayName)</String>
       </Value>
     </Setting>
     <Setting Provider="PolicyInfo" Key="Information" ValueName="Id">
@@ -488,7 +513,7 @@ $denyRuleRefsXml        </FileRulesRef>
     if ($PSCmdlet.ShouldProcess($displayName, "Create App Control for Business policy")) {
         try {
             $uri = "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies"
-            $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json"
+            $result = Invoke-MgGraphRequest -Method POST -Uri $uri -Body $body -ContentType "application/json" -ErrorAction Stop
             Write-Host "[+] Created: $displayName (ID: $($result.id))" -ForegroundColor Green
             Write-Host "    WDAC Policy GUID: $policyIdBraces" -ForegroundColor Gray
             Write-Host "    Location: Endpoint Security > Application Control" -ForegroundColor Gray
@@ -560,7 +585,7 @@ function Set-PolicyAssignment {
 
     if ($PSCmdlet.ShouldProcess("Policy $PolicyId", "Assign to group $GroupId")) {
         try {
-            Invoke-MgGraphRequest -Method POST -Uri $uri -Body $assignmentBody -ContentType "application/json" | Out-Null
+            Invoke-MgGraphRequest -Method POST -Uri $uri -Body $assignmentBody -ContentType "application/json" -ErrorAction Stop | Out-Null
             Write-Host "    [+] Assigned policy $PolicyId to group $GroupId" -ForegroundColor Green
         }
         catch {
