@@ -75,7 +75,7 @@ Unlike AppLocker, WDAC does not have per-user rules -- it applies to **all users
 
 | Requirement | Details |
 |---|---|
-| **PowerShell** | 5.1+ or PowerShell 7+ |
+| **PowerShell** | 7+ (PowerShell 5.1 is **not** supported) |
 | **Module** | `Microsoft.Graph.Authentication` (auto-installed if missing) |
 | **Role** | Global Administrator or Intune Administrator |
 | **License** | Microsoft Intune (included in M365 E3/E5, Business Premium) |
@@ -98,6 +98,8 @@ The tool requests **least-privilege delegated scopes** -- only what is needed:
 These are **delegated** permissions -- they run in the context of the signed-in user and are limited by that user's own Entra ID role (Global Admin or Intune Administrator). No application-level (daemon) permissions are used. If your organisation restricts user consent, a Global Admin can pre-consent for the tenant in **Entra ID → Enterprise applications → Microsoft Graph PowerShell → Permissions**.
 
 ## Quick Start
+
+> **Requires PowerShell 7+.** These scripts do not support Windows PowerShell 5.1. Install PowerShell 7 from the [official docs](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) or run `winget install Microsoft.PowerShell`. Launch with `pwsh`.
 
 ```powershell
 # 1. Clone the repo

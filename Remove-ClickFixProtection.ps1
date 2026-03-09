@@ -46,7 +46,7 @@
 
 .NOTES
     Prerequisites:
-      - PowerShell 5.1+ or PowerShell 7+
+      - PowerShell 7+ (PowerShell 5.1 is not supported)
       - Microsoft.Graph.Authentication module (auto-installed if missing)
       - Global Administrator or Intune Administrator role
       - Microsoft Intune license on target tenant
@@ -80,6 +80,16 @@ $banner = @"
 
 "@
 Write-Host $banner -ForegroundColor Red
+
+#endregion
+
+#region -- PowerShell Version Check -------------------------------------------
+
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Error "This script requires PowerShell 7 or later. You are running PowerShell $($PSVersionTable.PSVersion)."
+    Write-Error "Install PowerShell 7+: https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows"
+    exit 1
+}
 
 #endregion
 
